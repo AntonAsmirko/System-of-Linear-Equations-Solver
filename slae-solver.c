@@ -234,6 +234,17 @@ void solve_SLAE(SLAE *slae)
     }
 }
 
+/* free utils */
+
+void free_SLE_from_stack(SLAE *sle)
+{
+    for (int i = 0; i < sle->size; i++)
+    {
+        free(sle->coeficients[i]);
+    }
+    free(sle->coeficients);
+}
+
 /* main */
 
 int main(int argc, char **argv)
@@ -258,5 +269,8 @@ int main(int argc, char **argv)
         printf("%s", "an error occured while attempt to write solution to file\n");
         exit(1);
     }
+
+    free_SLE_from_stack(&system);
+
     return 0;
 }
