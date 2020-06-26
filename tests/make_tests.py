@@ -20,7 +20,7 @@ def write_test(test, f):
             f.write(' ')
         f.write('\n')
     for i in test[1]:
-        f.write(str(i))
+        f.write(str(i[0]))
         f.write(' ')
     f.write('\n')
 
