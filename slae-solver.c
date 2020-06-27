@@ -3,9 +3,12 @@
 #include <limits.h>
 #include <math.h>
 #include <string.h>
+#include <float.h>
 
 #define ld double
 #define DUMMY_EPS 0.00000001
+#define ABS_TOL 0.0000001
+#define REL_TOL 1
 
 /* utils */
 
@@ -38,17 +41,44 @@ void matrix_copy(ld **matrix, size_t matrix_size, ld **dest)
     }
 }
 
-int float_equals(ld a, ld b, ld epsilon)
+// int float_equals(ld a, ld b, ld epsilon)
+// {
+
+//     ld diff = fabs(a - b);
+//     a = fabs(a);
+//     b = fabs(b);
+
+//     ld max = (a > b) ? a : b;
+
+//     if (diff <= max * epsilon)
+//     {
+//         return 1;
+//     }
+//     else
+//     {
+//         return 0;
+//     }
+// }
+
+int float_equals(ld a, ld b, ld abs_tol, ld rel_tol)
 {
-    if (fabs(a - b) < epsilon)
-    {
-        return 1;
-    }
-    else
-    {
-        return 0;
-    }
+    ld diff = fabs(a - b);
+    return (diff <= fabs(rel_tol * b)) ||
+           (diff <= fabs(rel_tol * a)) ||
+           (diff <= abs_tol);
 }
+
+// int float_equals(ld a, ld b, ld epsilon)
+// {
+//     if (fabs(a - b) < epsilon)
+//     {
+//         return 1;
+//     }
+//     else
+//     {
+//         return 0;
+//     }
+// }
 
 ld **allocate_2D_double_array(size_t x_shape, size_t y_shape)
 {
@@ -74,20 +104,17 @@ void append_int_to_query(char *query, size_t *path_len, int val)
     free(tmp);
 }
 
-void append_float_to_query(char *query, size_t *path_len, float val)
+void append_str_to_query(char *query, size_t *path_len, char *str)
 {
-    char *tmp = (char *)malloc(sizeof(char) * 50);
-    sprintf(tmp, "%f", val);
-    for (size_t i = 0; i < 50 && tmp[i] != '\0'; i++, (*path_len)++)
+    for (size_t j = 0; *path_len < 2000 && str[j] != '\0'; (*path_len)++, j++)
     {
-        query[*path_len] = tmp[i];
+        query[*path_len] = str[j];
     }
     query[*path_len] = ' ';
     (*path_len)++;
-    free(tmp);
 }
 
-char *make_query(size_t x_shape, size_t y_shape, float lower_bound, float upper_bound, size_t count_tests)
+char *make_query(size_t x_shape, size_t y_shape, char *lower_bound, char *upper_bound, size_t count_tests)
 {
     char *query = (char *)malloc(sizeof(char) * 2000);
     size_t path_len = 21;
@@ -96,8 +123,8 @@ char *make_query(size_t x_shape, size_t y_shape, float lower_bound, float upper_
     path_len++;
     append_int_to_query(query, &path_len, x_shape);
     append_int_to_query(query, &path_len, y_shape);
-    append_float_to_query(query, &path_len, lower_bound);
-    append_float_to_query(query, &path_len, upper_bound);
+    append_str_to_query(query, &path_len, lower_bound);
+    append_str_to_query(query, &path_len, upper_bound);
     append_int_to_query(query, &path_len, count_tests);
 
     return query;
@@ -255,7 +282,8 @@ ld *vector_subtruction(ld *vector1, ld *vector2, size_t vector_size)
 
 void eliminate_column(ld **matrix, size_t matrix_size, size_t column, size_t pivot_index)
 {
-    ld *norm_pivot = vector_times_scalar(matrix[pivot_index], matrix_size + 1, 1.0 / matrix[pivot_index][column]);
+    ld scalar = 1.0 / matrix[pivot_index][column];
+    ld *norm_pivot = vector_times_scalar(matrix[pivot_index], matrix_size + 1, scalar);
     matrix_change_row(matrix, norm_pivot, pivot_index);
     for (size_t i = 0; i < matrix_size; i++)
     {
@@ -286,7 +314,7 @@ int pivoting(SLAE *slae)
     for (size_t i = 0; i < slae->size; i++)
     {
         size_t max_pos = max_elt_pos(slae, i);
-        if (slae->coeficients[max_pos][i] == 0.0)
+        if (float_equals(slae->coeficients[max_pos][i], 0.0, ABS_TOL, FLT_EPSILON))
         {
             was_skip = 1;
             continue;
@@ -296,6 +324,7 @@ int pivoting(SLAE *slae)
             row_swap(slae->coeficients, max_pos, i);
         }
         eliminate_column(slae->coeficients, slae->size, i, i);
+        print_squere_matrix(slae->coeficients, slae->size, stdout);
     }
     return was_skip;
 }
@@ -309,7 +338,7 @@ answer_type check_solution(SLAE *slae)
         {
             result += slae->coeficients[i][j] * slae->coeficients[j][slae->size];
         }
-        if (!float_equals(result, slae->coeficients[i][slae->size], DUMMY_EPS))
+        if (!float_equals(result, slae->coeficients[i][slae->size], ABS_TOL, FLT_EPSILON))
         {
             return no_solutions;
         }
@@ -402,7 +431,7 @@ int check_correctness(test_sla *test)
     size_t size_x = test->system->size;
     for (size_t i = 0; i < size_x; i++)
     {
-        if (!float_equals(test->system->coeficients[i][size_x], test->solution[i], DUMMY_EPS))
+        if (!float_equals(test->system->coeficients[i][size_x], test->solution[i], ABS_TOL, FLT_EPSILON))
         {
             return 0;
         }
@@ -410,7 +439,7 @@ int check_correctness(test_sla *test)
     return 1;
 }
 
-void run_tests(size_t x_shape, size_t y_shape, float lower_bound, float upper_bound, int count_tests)
+void run_tests(size_t x_shape, size_t y_shape, char *lower_bound, char *upper_bound, int count_tests)
 {
     char *query = make_query(x_shape, y_shape, lower_bound, upper_bound, count_tests);
     system(query);
@@ -473,36 +502,37 @@ void run_tests(size_t x_shape, size_t y_shape, float lower_bound, float upper_bo
 
 /* main */
 
-// int main(int argc, char **argv)
-// {
-//     if (argc != 3)
-//     {
-//         printf("%s%d%s", "wrong number of arguments passed to program, got ", argc - 1, ", expected 2\n");
-//         exit(1);
-//     }
-
-//     SLAE system;
-//     if (read_input(argv[1], &system) == 1)
-//     {
-//         printf("%s", "error while opening input file\n");
-//         exit(1);
-//     };
-//     solve_SLAE(&system);
-
-//     if (write_output(argv[2], &system))
-//     {
-//         printf("%s", "an error occured while attempt to write solution to file\n");
-//         exit(1);
-//     }
-
-//     test_pivoting(&system);
-
-//     free_SLE_from_stack(&system);
-
-//     return 0;
-// }
-
-int main()
+int main(int argc, char **argv)
 {
-    run_tests(5, 5, 0.0000000001, 0.0000345, 10);
+
+    if (argc != 3)
+    {
+        printf("%s%d%s", "wrong number of arguments passed to program, got ", argc - 1, ", expected 2\n");
+        exit(1);
+    }
+
+    SLAE system;
+    if (read_input(argv[1], &system) == 1)
+    {
+        printf("%s", "error while opening input file\n");
+        exit(1);
+    };
+    solve_SLAE(&system);
+
+    if (write_output(argv[2], &system))
+    {
+        printf("%s", "an error occured while attempt to write solution to file\n");
+        exit(1);
+    }
+
+    test_pivoting(&system);
+
+    free_SLE_from_stack(&system);
+
+    return 0;
 }
+
+// int main()
+// {
+//     run_tests(10, 10, "0.00000000000000000000000000000098", "0.0000000000000005", 5);
+// }
