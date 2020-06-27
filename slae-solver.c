@@ -41,25 +41,6 @@ void matrix_copy(ld **matrix, size_t matrix_size, ld **dest)
     }
 }
 
-// int float_equals(ld a, ld b, ld epsilon)
-// {
-
-//     ld diff = fabs(a - b);
-//     a = fabs(a);
-//     b = fabs(b);
-
-//     ld max = (a > b) ? a : b;
-
-//     if (diff <= max * epsilon)
-//     {
-//         return 1;
-//     }
-//     else
-//     {
-//         return 0;
-//     }
-// }
-
 int float_equals(ld a, ld b, ld abs_tol, ld rel_tol)
 {
     ld diff = fabs(a - b);
@@ -67,18 +48,6 @@ int float_equals(ld a, ld b, ld abs_tol, ld rel_tol)
            (diff <= fabs(rel_tol * a)) ||
            (diff <= abs_tol);
 }
-
-// int float_equals(ld a, ld b, ld epsilon)
-// {
-//     if (fabs(a - b) < epsilon)
-//     {
-//         return 1;
-//     }
-//     else
-//     {
-//         return 0;
-//     }
-// }
 
 ld **allocate_2D_double_array(size_t x_shape, size_t y_shape)
 {
