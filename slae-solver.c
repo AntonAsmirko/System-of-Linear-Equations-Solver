@@ -5,15 +5,15 @@
 #include <string.h>
 
 #define ld double
-#define DUMMY_EPS 0.00000000001
+#define DUMMY_EPS 0.00000001
 
 /* utils */
 
-void print_squere_matrix(ld **matrix, int matrix_size, FILE *file)
+void print_squere_matrix(ld **matrix, size_t matrix_size, FILE *file)
 {
-    for (int i = 0; i < matrix_size; i++)
+    for (size_t i = 0; i < matrix_size; i++)
     {
-        for (int j = 0; j < matrix_size + 1; j++)
+        for (size_t j = 0; j < matrix_size + 1; j++)
         {
             if (j == matrix_size)
             {
@@ -27,7 +27,7 @@ void print_squere_matrix(ld **matrix, int matrix_size, FILE *file)
     }
 }
 
-void matrix_copy(ld **matrix, int matrix_size, ld **dest)
+void matrix_copy(ld **matrix, size_t matrix_size, ld **dest)
 {
     for (size_t i = 0; i < matrix_size; i++)
     {
@@ -50,7 +50,7 @@ int float_equals(ld a, ld b, ld epsilon)
     }
 }
 
-ld **allocate_2D_double_array(int x_shape, int y_shape)
+ld **allocate_2D_double_array(size_t x_shape, size_t y_shape)
 {
     ld **result = (ld **)malloc(sizeof(ld *) * x_shape);
     for (size_t i = 0; i < x_shape; i++)
@@ -61,7 +61,7 @@ ld **allocate_2D_double_array(int x_shape, int y_shape)
     return result;
 }
 
-void append_int_to_query(char *query, int *path_len, int val)
+void append_int_to_query(char *query, size_t *path_len, int val)
 {
     char *tmp = (char *)malloc(sizeof(char) * 50);
     sprintf(tmp, "%d", val);
@@ -74,7 +74,7 @@ void append_int_to_query(char *query, int *path_len, int val)
     free(tmp);
 }
 
-void append_float_to_query(char *query, int *path_len, float val)
+void append_float_to_query(char *query, size_t *path_len, float val)
 {
     char *tmp = (char *)malloc(sizeof(char) * 50);
     sprintf(tmp, "%f", val);
@@ -87,10 +87,10 @@ void append_float_to_query(char *query, int *path_len, float val)
     free(tmp);
 }
 
-char *make_query(int x_shape, int y_shape, float lower_bound, float upper_bound, int count_tests)
+char *make_query(size_t x_shape, size_t y_shape, float lower_bound, float upper_bound, size_t count_tests)
 {
     char *query = (char *)malloc(sizeof(char) * 2000);
-    int path_len = 21;
+    size_t path_len = 21;
     strcpy(query, "./tests/make_tests.py");
     query[path_len] = ' ';
     path_len++;
@@ -115,7 +115,7 @@ typedef enum answer_type
 
 typedef struct SLAE
 {
-    int size;
+    size_t size;
     ld **coeficients;
     answer_type at;
 } SLAE;
@@ -127,15 +127,10 @@ typedef struct test_sla
     ld **original_system;
 } test_sla;
 
-int make_SLAE(int system_size, SLAE *system)
+int make_SLAE(size_t system_size, SLAE *system)
 {
-    // I need to use matrix allocator here
-    system->coeficients = (ld **)malloc(sizeof(ld *) * system_size);
-    for (int i = 0; i < system_size; i++)
-    {
-        system->coeficients[i] = (ld *)malloc(sizeof(ld) * (system_size + 1));
-    }
 
+    system->coeficients = allocate_2D_double_array(system_size, system_size + 1);
     system->size = system_size;
     system->at = not_solved_yet;
 
@@ -193,7 +188,7 @@ int write_output(char *out_file, SLAE *solution)
         fprintf(out, "%s", "many solutions\n");
         break;
     case one_solution:
-        for (int i = 0; i < solution->size; i++)
+        for (size_t i = 0; i < solution->size; i++)
         {
             fprintf(out, "%f\n", solution->coeficients[i][solution->size]);
         }
@@ -209,18 +204,18 @@ int write_output(char *out_file, SLAE *solution)
 
 /* slae solver */
 
-void matrix_change_row(ld **matrix, ld *new_row, int pos)
+void matrix_change_row(ld **matrix, ld *new_row, size_t pos)
 {
     ld *to_erase = matrix[pos];
     matrix[pos] = new_row;
     free(to_erase);
 }
 
-int max_elt_pos(SLAE *slae, int column)
+size_t max_elt_pos(SLAE *slae, size_t column)
 {
     ld max = slae->coeficients[column][column];
-    int max_pos = column;
-    for (int i = column; i < slae->size; i++)
+    size_t max_pos = column;
+    for (size_t i = column; i < slae->size; i++)
     {
         if (slae->coeficients[i][column] != 0 && (slae->coeficients[i][column] > max || max == 0))
         {
@@ -231,38 +226,38 @@ int max_elt_pos(SLAE *slae, int column)
     return max_pos;
 }
 
-void row_swap(ld **arr, int first_row_index, int second_row_index)
+void row_swap(ld **arr, size_t first_row_index, size_t second_row_index)
 {
     ld *tmp = arr[first_row_index];
     arr[first_row_index] = arr[second_row_index];
     arr[second_row_index] = tmp;
 }
 
-ld *vector_times_scalar(ld *vector, int vector_size, ld scalar)
+ld *vector_times_scalar(ld *vector, size_t vector_size, ld scalar)
 {
     ld *result = (ld *)malloc(sizeof(ld) * vector_size);
-    for (int i = 0; i < vector_size; i++)
+    for (size_t i = 0; i < vector_size; i++)
     {
         result[i] = vector[i] * scalar;
     }
     return result;
 }
 
-ld *vector_subtruction(ld *vector1, ld *vector2, int vector_size)
+ld *vector_subtruction(ld *vector1, ld *vector2, size_t vector_size)
 {
     ld *result = (ld *)malloc(sizeof(ld) * vector_size);
-    for (int i = 0; i < vector_size; i++)
+    for (size_t i = 0; i < vector_size; i++)
     {
         result[i] = vector1[i] - vector2[i];
     }
     return result;
 }
 
-void eliminate_column(ld **matrix, int matrix_size, int column, int pivot_index)
+void eliminate_column(ld **matrix, size_t matrix_size, size_t column, size_t pivot_index)
 {
     ld *norm_pivot = vector_times_scalar(matrix[pivot_index], matrix_size + 1, 1.0 / matrix[pivot_index][column]);
     matrix_change_row(matrix, norm_pivot, pivot_index);
-    for (int i = 0; i < matrix_size; i++)
+    for (size_t i = 0; i < matrix_size; i++)
     {
         if (i == pivot_index)
         {
@@ -274,6 +269,7 @@ void eliminate_column(ld **matrix, int matrix_size, int column, int pivot_index)
             ld *to_subtruct = vector_times_scalar(matrix[pivot_index], matrix_size + 1, koefficient);
             ld *ith_row_minus_to_subtruct = vector_subtruction(matrix[i], to_subtruct, matrix_size + 1);
             matrix_change_row(matrix, ith_row_minus_to_subtruct, i);
+            free(to_subtruct);
         }
     }
 }
@@ -287,9 +283,9 @@ void eliminate_column(ld **matrix, int matrix_size, int column, int pivot_index)
 int pivoting(SLAE *slae)
 {
     int was_skip = 0;
-    for (int i = 0; i < slae->size; i++)
+    for (size_t i = 0; i < slae->size; i++)
     {
-        int max_pos = max_elt_pos(slae, i);
+        size_t max_pos = max_elt_pos(slae, i);
         if (slae->coeficients[max_pos][i] == 0.0)
         {
             was_skip = 1;
@@ -306,10 +302,10 @@ int pivoting(SLAE *slae)
 
 answer_type check_solution(SLAE *slae)
 {
-    for (int i = 0; i < slae->size; i++)
+    for (size_t i = 0; i < slae->size; i++)
     {
         ld result = 0.0;
-        for (int j = 0; j < slae->size; j++)
+        for (size_t j = 0; j < slae->size; j++)
         {
             result += slae->coeficients[i][j] * slae->coeficients[j][slae->size];
         }
@@ -348,7 +344,7 @@ void test_pivoting(SLAE *slae)
 
 void free_SLE_from_stack(SLAE *sle)
 {
-    for (int i = 0; i < sle->size; i++)
+    for (size_t i = 0; i < sle->size; i++)
     {
         free(sle->coeficients[i]);
     }
@@ -388,12 +384,12 @@ int write_wrong_one_solution(test_sla *test, FILE *out)
     fprintf(out, "%s\n", "EXPECTED:");
     for (size_t i = 0; i < test->system->size; i++)
     {
-        fprintf(out, "%f ", test->solution[i]);
+        fprintf(out, "%lf ", test->solution[i]);
     }
     fprintf(out, "\n%s\n", "GOT:");
     for (size_t i = 0; i < test->system->size; i++)
     {
-        fprintf(out, "%f ", test->system->coeficients[i][test->system->size]);
+        fprintf(out, "%lf ", test->system->coeficients[i][test->system->size]);
     }
     fprintf(out, "%s", "\n");
     return 0;
@@ -403,7 +399,7 @@ int write_wrong_one_solution(test_sla *test, FILE *out)
 
 int check_correctness(test_sla *test)
 {
-    int size_x = test->system->size;
+    size_t size_x = test->system->size;
     for (size_t i = 0; i < size_x; i++)
     {
         if (!float_equals(test->system->coeficients[i][size_x], test->solution[i], DUMMY_EPS))
@@ -414,7 +410,7 @@ int check_correctness(test_sla *test)
     return 1;
 }
 
-void run_tests(int x_shape, int y_shape, float lower_bound, float upper_bound, int count_tests)
+void run_tests(size_t x_shape, size_t y_shape, float lower_bound, float upper_bound, int count_tests)
 {
     char *query = make_query(x_shape, y_shape, lower_bound, upper_bound, count_tests);
     system(query);
@@ -470,6 +466,9 @@ void run_tests(int x_shape, int y_shape, float lower_bound, float upper_bound, i
         free(system);
         free(test);
     }
+
+    fclose(tests);
+    fclose(tests_results);
 }
 
 /* main */
@@ -505,5 +504,5 @@ void run_tests(int x_shape, int y_shape, float lower_bound, float upper_bound, i
 
 int main()
 {
-    run_tests(5, 5, 0.678, 1000.45564, 10);
+    run_tests(5, 5, 0.0000000001, 0.0000345, 10);
 }
