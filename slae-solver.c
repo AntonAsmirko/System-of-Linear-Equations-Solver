@@ -7,7 +7,7 @@
 
 #define ld double
 #define DUMMY_EPS 0.00000001
-#define ABS_TOL 0.0000001
+#define ABS_TOL 0.0000000001
 #define REL_TOL 1
 
 /* utils */
@@ -158,7 +158,7 @@ int read_input(char *in_file, SLAE *input_system)
     {
         for (int j = 0; j < N + 1; j++)
         {
-            fscanf(file_in, "%f", &(input_system->coeficients[i][j]));
+            fscanf(file_in, "%lf", &(input_system->coeficients[i][j]));
         }
     }
 
