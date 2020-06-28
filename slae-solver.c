@@ -5,10 +5,11 @@
 #include <string.h>
 #include <float.h>
 
-#define ld double
-#define DUMMY_EPS 0.000000000001
-#define ABS_TOL 0.0000001
-#define REL_TOL 1
+#define ld float
+#define DUMMY_EPS 0.000000000001f
+#define ABS_TOL 1.192092896e-07
+#define REL_TOL 1.0f
+#define FLT_EPSILON_C 1.192092896e-07
 
 /* utils */
 
@@ -20,11 +21,11 @@ void print_squere_matrix(ld **matrix, size_t matrix_size, FILE *file)
         {
             if (j == matrix_size)
             {
-                fprintf(file, "%f\n", matrix[i][j]);
+                fprintf(file, "%.16f\n", matrix[i][j]);
             }
             else
             {
-                fprintf(file, "%f ", matrix[i][j]);
+                fprintf(file, "%.16f ", matrix[i][j]);
             }
         }
     }
@@ -159,7 +160,7 @@ int read_input(char *in_file, SLAE *input_system)
     {
         for (int j = 0; j < N + 1; j++)
         {
-            fscanf(file_in, "%lf", &(input_system->coeficients[i][j]));
+            fscanf(file_in, "%f", &(input_system->coeficients[i][j]));
         }
     }
 
@@ -187,7 +188,7 @@ int write_output(char *out_file, SLAE *solution)
     case one_solution:
         for (size_t i = 0; i < solution->size; i++)
         {
-            fprintf(out, "%f\n", solution->coeficients[i][solution->size]);
+            fprintf(out, "%.16f\n", solution->coeficients[i][solution->size]);
         }
         break;
     default:
@@ -236,6 +237,14 @@ ld *vector_times_scalar(ld *vector, size_t vector_size, ld scalar)
     for (size_t i = 0; i < vector_size; i++)
     {
         result[i] = vector[i] * scalar;
+        if (float_equals(result[i], 0.0f, ABS_TOL, FLT_EPSILON_C))
+        {
+            result[i] = 0.0f;
+        }
+        else if (float_equals(result[i], 1.0f, ABS_TOL, FLT_EPSILON_C))
+        {
+            result[i] = 1.0f;
+        }
     }
     return result;
 }
@@ -245,14 +254,21 @@ ld *vector_subtruction(ld *vector1, ld *vector2, size_t vector_size)
     ld *result = (ld *)malloc(sizeof(ld) * vector_size);
     for (size_t i = 0; i < vector_size; i++)
     {
-        result[i] = vector1[i] - vector2[i];
+        if (float_equals(vector1[i], vector2[i], ABS_TOL, FLT_EPSILON_C))
+        {
+            result[i] = 0.0f;
+        }
+        else
+        {
+            result[i] = vector1[i] - vector2[i];
+        }
     }
     return result;
 }
 
 void eliminate_column(ld **matrix, size_t matrix_size, size_t column, size_t pivot_index)
 {
-    ld scalar = 1.0 / matrix[pivot_index][column];
+    ld scalar = 1.0f / matrix[pivot_index][column];
     ld *norm_pivot = vector_times_scalar(matrix[pivot_index], matrix_size + 1, scalar);
     matrix_change_row(matrix, norm_pivot, pivot_index);
     for (size_t i = 0; i < matrix_size; i++)
@@ -284,7 +300,7 @@ int pivoting(SLAE *slae)
     for (size_t i = 0; i < slae->size; i++)
     {
         size_t max_pos = max_elt_pos(slae, i);
-        if (float_equals(slae->coeficients[max_pos][i], 0.0, ABS_TOL, FLT_EPSILON))
+        if (float_equals(slae->coeficients[max_pos][i], 0.0f, ABS_TOL, FLT_EPSILON_C))
         {
             was_skip = 1;
             continue;
@@ -303,12 +319,12 @@ answer_type check_solution(SLAE *slae)
 {
     for (size_t i = 0; i < slae->size; i++)
     {
-        ld result = 0.0;
+        ld result = 0.0f;
         for (size_t j = 0; j < slae->size; j++)
         {
             result += slae->coeficients[i][j] * slae->coeficients[j][slae->size];
         }
-        if (!float_equals(result, slae->coeficients[i][slae->size], ABS_TOL, FLT_EPSILON))
+        if (!float_equals(result, slae->coeficients[i][slae->size], ABS_TOL, FLT_EPSILON_C))
         {
             return no_solutions;
         }
@@ -360,7 +376,7 @@ int read_test(FILE *tests, SLAE *system, test_sla *test, int require_solution)
     {
         for (size_t j = 0; j < y_size; j++)
         {
-            fscanf(tests, "%lf", &(system->coeficients[i][j]));
+            fscanf(tests, "%f", &(system->coeficients[i][j]));
         }
     }
     ld *solution = (ld *)malloc(sizeof(ld) * x_size);
@@ -368,7 +384,7 @@ int read_test(FILE *tests, SLAE *system, test_sla *test, int require_solution)
     {
         for (size_t i = 0; i < x_size; i++)
         {
-            fscanf(tests, "%lf", &(solution[i]));
+            fscanf(tests, "%f", &(solution[i]));
         }
     }
 
@@ -386,12 +402,12 @@ int write_wrong_one_solution(test_sla *test, FILE *out)
     fprintf(out, "%s\n", "EXPECTED:");
     for (size_t i = 0; i < test->system->size; i++)
     {
-        fprintf(out, "%lf ", test->solution[i]);
+        fprintf(out, "%.16f ", test->solution[i]);
     }
     fprintf(out, "\n%s\n", "GOT:");
     for (size_t i = 0; i < test->system->size; i++)
     {
-        fprintf(out, "%lf ", test->system->coeficients[i][test->system->size]);
+        fprintf(out, "%.16f ", test->system->coeficients[i][test->system->size]);
     }
     fprintf(out, "%s", "\n");
     return 0;
@@ -404,7 +420,7 @@ int check_correctness_one_solution(test_sla *test)
     size_t size_x = test->system->size;
     for (size_t i = 0; i < size_x; i++)
     {
-        if (!float_equals(test->system->coeficients[i][size_x], test->solution[i], ABS_TOL, FLT_EPSILON))
+        if (!float_equals(test->system->coeficients[i][size_x], test->solution[i], ABS_TOL, FLT_EPSILON_C))
         {
             return 0;
         }
@@ -419,7 +435,7 @@ void run_tests(char *mode, size_t x_shape, size_t y_shape, char *lower_bound, ch
     free(query);
     FILE *tests;
     FILE *tests_results;
-
+    int tests_passed = 0;
     if (!(tests = fopen("./tests/tests.txt", "r")))
     {
         printf("%s", "an error occurred while attempt to open file tests.txt");
@@ -455,6 +471,7 @@ void run_tests(char *mode, size_t x_shape, size_t y_shape, char *lower_bound, ch
             if (test->system->at == inf_solution)
             {
                 printf("%s%d%s\n", "Test № ", i + 1, " passed successfully");
+                tests_passed++;
             }
             else
             {
@@ -476,58 +493,62 @@ void run_tests(char *mode, size_t x_shape, size_t y_shape, char *lower_bound, ch
 
                 for (size_t j = 0; j < x_shape; j++)
                 {
-                    printf("%lf ", system->coeficients[j][system->size]);
+                    printf("%.16f ", system->coeficients[j][system->size]);
                 }
 
                 printf("\n%s\n", "SYSTEMS ANSWER:");
 
                 for (size_t j = 0; j < x_shape; j++)
                 {
-                    printf("%lf ", test->solution[j]);
+                    printf("%.16f ", test->solution[j]);
                 }
                 printf("%s", "\n");
+                tests_passed++;
             }
         }
 
         free(system);
         free(test);
     }
-
+    fprintf(tests_results, "%d %d\n", tests_passed, count_tests);
     fclose(tests);
     fclose(tests_results);
 }
 
 /* main */
 
-int main(int argc, char **argv)
-{
+// int main(int argc, char **argv)
+// {
+//     if (argc != 3)
+//     {
+//         printf("%s%d%s", "wrong number of arguments passed to program, got ", argc - 1, ", expected 2\n");
+//         exit(1);
+//     }
 
-    if (argc != 3)
-    {
-        printf("%s%d%s", "wrong number of arguments passed to program, got ", argc - 1, ", expected 2\n");
-        exit(1);
-    }
+//     SLAE system;
+//     if (read_input(argv[1], &system) == 1)
+//     {
+//         printf("%s", "error while opening input file\n");
+//         exit(1);
+//     };
+//     solve_SLAE(&system);
 
-    SLAE system;
-    if (read_input(argv[1], &system) == 1)
-    {
-        printf("%s", "error while opening input file\n");
-        exit(1);
-    };
-    solve_SLAE(&system);
+//     printf("\n");
 
-    if (write_output(argv[2], &system))
-    {
-        printf("%s", "an error occured while attempt to write solution to file\n");
-        exit(1);
-    }
+//     print_squere_matrix(system.coeficients, system.size, stdout);
 
-    test_pivoting(&system);
+//     if (write_output(argv[2], &system))
+//     {
+//         printf("%s", "an error occured while attempt to write solution to file\n");
+//         exit(1);
+//     }
 
-    free_SLE_from_stack(&system);
+//     test_pivoting(&system);
 
-    return 0;
-}
+//     free_SLE_from_stack(&system);
+
+//     return 0;
+// }
 
 int my_getnbr(char *str)
 {
@@ -560,15 +581,15 @@ upper_bound
 count_tests
 */
 
-// int main(int argc, char **argv)
-// {
-//     if (argc != 7)
-//     {
-//         printf("%s\n", "wrong number of arguments been passed to programm, expected 6 args");
-//         exit(1);
-//     }
+int main(int argc, char **argv)
+{
+    if (argc != 7)
+    {
+        printf("%s\n", "wrong number of arguments been passed to programm, expected 6 args");
+        exit(1);
+    }
 
-//     run_tests(argv[1], my_getnbr(argv[2]), my_getnbr(argv[3]), argv[4], argv[5], my_getnbr(argv[6]));
+    run_tests(argv[1], my_getnbr(argv[2]), my_getnbr(argv[3]), argv[4], argv[5], my_getnbr(argv[6]));
 
-//     return 0;
-// }
+    return 0;
+}
