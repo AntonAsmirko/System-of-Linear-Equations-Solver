@@ -6,8 +6,8 @@
 #include <float.h>
 
 #define ld double
-#define DUMMY_EPS 0.00000001
-#define ABS_TOL 0.0000000001
+#define DUMMY_EPS 0.000000000001
+#define ABS_TOL 0.0000001
 #define REL_TOL 1
 
 /* utils */
@@ -83,13 +83,14 @@ void append_str_to_query(char *query, size_t *path_len, char *str)
     (*path_len)++;
 }
 
-char *make_query(size_t x_shape, size_t y_shape, char *lower_bound, char *upper_bound, size_t count_tests)
+char *make_query(char *mode, size_t x_shape, size_t y_shape, char *lower_bound, char *upper_bound, size_t count_tests)
 {
     char *query = (char *)malloc(sizeof(char) * 2000);
     size_t path_len = 21;
     strcpy(query, "./tests/make_tests.py");
     query[path_len] = ' ';
     path_len++;
+    append_str_to_query(query, &path_len, mode);
     append_int_to_query(query, &path_len, x_shape);
     append_int_to_query(query, &path_len, y_shape);
     append_str_to_query(query, &path_len, lower_bound);
@@ -351,7 +352,7 @@ void free_SLE_from_stack(SLAE *sle)
 
 /* read test */
 
-int read_test(FILE *tests, SLAE *system, test_sla *test)
+int read_test(FILE *tests, SLAE *system, test_sla *test, int require_solution)
 {
     int x_size, y_size;
     fscanf(tests, "%d%d", &x_size, &y_size);
@@ -363,9 +364,12 @@ int read_test(FILE *tests, SLAE *system, test_sla *test)
         }
     }
     ld *solution = (ld *)malloc(sizeof(ld) * x_size);
-    for (size_t i = 0; i < x_size; i++)
+    if (require_solution)
     {
-        fscanf(tests, "%lf", &(solution[i]));
+        for (size_t i = 0; i < x_size; i++)
+        {
+            fscanf(tests, "%lf", &(solution[i]));
+        }
     }
 
     make_test_sla(test, system, solution);
@@ -395,7 +399,7 @@ int write_wrong_one_solution(test_sla *test, FILE *out)
 
 /* run tests */
 
-int check_correctness(test_sla *test)
+int check_correctness_one_solution(test_sla *test)
 {
     size_t size_x = test->system->size;
     for (size_t i = 0; i < size_x; i++)
@@ -408,9 +412,9 @@ int check_correctness(test_sla *test)
     return 1;
 }
 
-void run_tests(size_t x_shape, size_t y_shape, char *lower_bound, char *upper_bound, int count_tests)
+void run_tests(char *mode, size_t x_shape, size_t y_shape, char *lower_bound, char *upper_bound, int count_tests)
 {
-    char *query = make_query(x_shape, y_shape, lower_bound, upper_bound, count_tests);
+    char *query = make_query(mode, x_shape, y_shape, lower_bound, upper_bound, count_tests);
     system(query);
     free(query);
     FILE *tests;
@@ -435,30 +439,54 @@ void run_tests(size_t x_shape, size_t y_shape, char *lower_bound, char *upper_bo
         make_SLAE(x_shape, system);
         test_sla *test = (test_sla *)malloc(sizeof(test_sla));
 
-        read_test(tests, system, test);
+        if (strcmp(mode, "ld") == 0)
+        {
+            read_test(tests, system, test, 0);
+        }
+        else if (strcmp(mode, "pli") == 0)
+        {
+            read_test(tests, system, test, 1);
+        }
+
         solve_SLAE(system);
 
-        if (!check_correctness(test))
+        if (strcmp(mode, "ld") == 0)
         {
-            write_wrong_one_solution(test, tests_results);
+            if (test->system->at == inf_solution)
+            {
+                printf("%s%d%s\n", "Test № ", i + 1, " passed successfully");
+            }
+            else
+            {
+                fprintf(tests_results, "%d\n", test->system->size);
+
+                print_squere_matrix(test->original_system, test->system->size, tests_results);
+            }
         }
-        else
+        else if (strcmp(mode, "pli") == 0)
         {
-            printf("%s%d%s\n", "Test № ", i + 1, " passed successfully");
-            printf("%s\n", "YOUR ANSWER:");
-
-            for (size_t j = 0; j < x_shape; j++)
+            if (!check_correctness_one_solution(test))
             {
-                printf("%lf ", system->coeficients[j][system->size]);
+                write_wrong_one_solution(test, tests_results);
             }
-
-            printf("\n%s\n", "SYSTEMS ANSWER:");
-
-            for (size_t j = 0; j < x_shape; j++)
+            else
             {
-                printf("%lf ", test->solution[j]);
+                printf("%s%d%s\n", "Test № ", i + 1, " passed successfully");
+                printf("%s\n", "YOUR ANSWER:");
+
+                for (size_t j = 0; j < x_shape; j++)
+                {
+                    printf("%lf ", system->coeficients[j][system->size]);
+                }
+
+                printf("\n%s\n", "SYSTEMS ANSWER:");
+
+                for (size_t j = 0; j < x_shape; j++)
+                {
+                    printf("%lf ", test->solution[j]);
+                }
+                printf("%s", "\n");
             }
-            printf("%s", "\n");
         }
 
         free(system);
@@ -501,7 +529,46 @@ int main(int argc, char **argv)
     return 0;
 }
 
-// int main()
+int my_getnbr(char *str)
+{
+    int result;
+    int puiss;
+
+    result = 0;
+    puiss = 1;
+    while (('-' == (*str)) || ((*str) == '+'))
+    {
+        if (*str == '-')
+            puiss = puiss * -1;
+        str++;
+    }
+    while ((*str >= '0') && (*str <= '9'))
+    {
+        result = (result * 10) + ((*str) - '0');
+        str++;
+    }
+    return (result * puiss);
+}
+
+/* 
+run_tests args description:
+mode - ld (linear dependent), pli (pribably linear independent)
+x_shape
+y_shape
+lower_bound
+upper_bound
+count_tests
+*/
+
+// int main(int argc, char **argv)
 // {
-//     run_tests(10, 10, "0.00000000000000000000000000000098", "0.0000000000000005", 5);
+//     if (argc != 7)
+//     {
+//         printf("%s\n", "wrong number of arguments been passed to programm, expected 6 args");
+//         exit(1);
+//     }
+
+//     run_tests(argv[1], my_getnbr(argv[2]), my_getnbr(argv[3]), argv[4], argv[5], my_getnbr(argv[6]));
+
+//     return 0;
 // }
