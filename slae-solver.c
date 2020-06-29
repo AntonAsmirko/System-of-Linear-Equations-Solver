@@ -4,17 +4,28 @@
 #include <math.h>
 
 #define ld long double
+#define DBL_EPSILON 1E-7
 
 /* utils */
 
-int float_equals(ld a, ld b, ld epsilon)
+int float_equals(ld LeftNumber, ld RightNumber, ld Epsilon)
 {
-    if (fabs(a - b) < epsilon)
+    ld diff = fabs(LeftNumber - RightNumber);
+    LeftNumber = fabs(LeftNumber);
+    RightNumber = fabs(RightNumber);
+
+    ld Largest = (RightNumber > LeftNumber) ? RightNumber : LeftNumber;
+
+    if (Largest < Epsilon)
     {
-        return 1;
+        if (diff <= Epsilon)
+            return 1;
+        return 0;
     }
     else
     {
+        if (diff <= Largest * Epsilon)
+            return 1;
         return 0;
     }
 }
@@ -67,7 +78,7 @@ int read_input(char *in_file, SLAE *input_system)
     {
         for (int j = 0; j < N + 1; j++)
         {
-            fscanf(file_in, "%Lf", &(input_system->coeficients[i][j]));
+            fscanf(file_in, "%lf", &(input_system->coeficients[i][j]));
         }
     }
 
@@ -95,7 +106,7 @@ int write_output(char *out_file, SLAE *solution)
     case one_solution:
         for (int i = 0; i < solution->size; i++)
         {
-            fprintf(out, "%Lf\n", solution->coeficients[i][solution->size]);
+            fprintf(out, "%lf\n", solution->coeficients[i][solution->size]);
         }
         break;
     default:
@@ -116,13 +127,13 @@ void matrix_change_row(ld **matrix, ld *new_row, int pos)
     free(to_erase);
 }
 
-int max_elt_pos(SLAE *slae, int column)
+size_t max_elt_pos(SLAE *slae, size_t column)
 {
     ld max = slae->coeficients[column][column];
-    int max_pos = column;
-    for (int i = column; i < slae->size; i++)
+    size_t max_pos = column;
+    for (size_t i = column; i < slae->size; i++)
     {
-        if (slae->coeficients[i][column] != 0 && (slae->coeficients[i][column] > max || max == 0))
+        if (!float_equals(slae->coeficients[i][column], 0.0, DBL_EPSILON) && (slae->coeficients[i][column] > max || float_equals(max, 0.0, DBL_EPSILON)))
         {
             max = slae->coeficients[i][column];
             max_pos = i;
@@ -138,31 +149,48 @@ void row_swap(ld **arr, int first_row_index, int second_row_index)
     arr[second_row_index] = tmp;
 }
 
-ld *vector_times_scalar(ld *vector, int vector_size, ld scalar)
+ld *vector_times_scalar(ld *vector, size_t vector_size, ld scalar)
 {
     ld *result = (ld *)malloc(sizeof(ld) * vector_size);
-    for (int i = 0; i < vector_size; i++)
+    for (size_t i = 0; i < vector_size; i++)
     {
         result[i] = vector[i] * scalar;
+
+        if (float_equals(result[i], 0.0, DBL_EPSILON))
+        {
+            result[i] = 0.0;
+        }
+        else if (float_equals(result[i], 1.0, DBL_EPSILON))
+        {
+            result[i] = 1.0;
+        }
     }
     return result;
 }
 
-ld *vector_subtruction(ld *vector1, ld *vector2, int vector_size)
+ld *vector_subtruction(ld *vector1, ld *vector2, size_t vector_size)
 {
     ld *result = (ld *)malloc(sizeof(ld) * vector_size);
-    for (int i = 0; i < vector_size; i++)
+    for (size_t i = 0; i < vector_size; i++)
     {
-        result[i] = vector1[i] - vector2[i];
+        if (float_equals(vector1[i], vector2[i], DBL_EPSILON))
+        {
+            result[i] = 0.0;
+        }
+        else
+        {
+            result[i] = vector1[i] - vector2[i];
+        }
     }
     return result;
 }
 
-void eliminate_column(ld **matrix, int matrix_size, int column, int pivot_index)
+void eliminate_column(ld **matrix, size_t matrix_size, size_t column, size_t pivot_index)
 {
-    ld *norm_pivot = vector_times_scalar(matrix[pivot_index], matrix_size + 1, 1.0 / matrix[pivot_index][column]);
+    ld scalar = 1.0 / matrix[pivot_index][column];
+    ld *norm_pivot = vector_times_scalar(matrix[pivot_index], matrix_size + 1, scalar);
     matrix_change_row(matrix, norm_pivot, pivot_index);
-    for (int i = 0; i < matrix_size; i++)
+    for (size_t i = 0; i < matrix_size; i++)
     {
         if (i == pivot_index)
         {
@@ -174,6 +202,7 @@ void eliminate_column(ld **matrix, int matrix_size, int column, int pivot_index)
             ld *to_subtruct = vector_times_scalar(matrix[pivot_index], matrix_size + 1, koefficient);
             ld *ith_row_minus_to_subtruct = vector_subtruction(matrix[i], to_subtruct, matrix_size + 1);
             matrix_change_row(matrix, ith_row_minus_to_subtruct, i);
+            free(to_subtruct);
         }
     }
 }
@@ -187,10 +216,10 @@ void eliminate_column(ld **matrix, int matrix_size, int column, int pivot_index)
 int pivoting(SLAE *slae)
 {
     int was_skip = 0;
-    for (int i = 0; i < slae->size; i++)
+    for (size_t i = 0; i < slae->size; i++)
     {
-        int max_pos = max_elt_pos(slae, i);
-        if (slae->coeficients[max_pos][i] == 0.0)
+        size_t max_pos = max_elt_pos(slae, i);
+        if (float_equals(slae->coeficients[max_pos][i], 0.0, DBL_EPSILON))
         {
             was_skip = 1;
             continue;
@@ -206,14 +235,14 @@ int pivoting(SLAE *slae)
 
 answer_type check_solution(SLAE *slae)
 {
-    for (int i = 0; i < slae->size; i++)
+    for (size_t i = 0; i < slae->size; i++)
     {
         ld result = 0.0;
-        for (int j = 0; j < slae->size; j++)
+        for (size_t j = 0; j < slae->size; j++)
         {
             result += slae->coeficients[i][j] * slae->coeficients[j][slae->size];
         }
-        if (!float_equals(result, slae->coeficients[i][slae->size], 0.000001))
+        if (!float_equals(result, slae->coeficients[i][slae->size], DBL_EPSILON))
         {
             return no_solutions;
         }
