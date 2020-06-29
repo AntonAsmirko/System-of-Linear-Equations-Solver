@@ -127,7 +127,7 @@ int write_output(char *out_file, SLAE *solution)
     case one_solution:
         for (int i = 0; i < solution->size; i++)
         {
-            fprintf(out, "%lf\n", solution->coeficients[i * 10 + solution->size]);
+            fprintf(out, "%lf\n", solution->coeficients[i * (solution->size + 1) + solution->size]);
         }
         break;
     default:
@@ -203,8 +203,11 @@ void eliminate_column(ld *matrix, size_t matrix_size, size_t column, size_t pivo
         else
         {
             ld koefficient = matrix[i * row_len + column];
-            vector_times_scalar(matrix + pivot_index * row_len, row_len, koefficient);
-            vector_subtruction(matrix + i * row_len, matrix + pivot_index * row_len, row_len);
+            ld *tmp = (ld *)malloc(sizeof(ld) * (matrix_size + 1));
+            memcpy(tmp, matrix + pivot_index * row_len, row_len * sizeof(ld));
+            vector_times_scalar(tmp, row_len, koefficient);
+            vector_subtruction(matrix + i * row_len, tmp, row_len);
+            free(tmp);
         }
     }
 }
@@ -212,6 +215,7 @@ void eliminate_column(ld *matrix, size_t matrix_size, size_t column, size_t pivo
 int pivoting(SLAE *slae)
 {
     int was_skip = 0;
+
     for (size_t i = 0; i < slae->size; i++)
     {
         size_t max_pos = max_elt_pos(slae, i);
@@ -229,7 +233,6 @@ int pivoting(SLAE *slae)
             free(tmp);
         }
         eliminate_column(slae->coeficients, slae->size, i, i);
-        print_squere_matrix(slae)
     }
     return was_skip;
 }
