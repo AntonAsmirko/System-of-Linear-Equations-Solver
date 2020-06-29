@@ -18,12 +18,12 @@ def write_test(test, f):
 
     for i in test[0]:
         for j in i:
-            f.write(str(j))
+            f.write("{:.7f}".format(j))
             f.write(' ')
         f.write('\n')
 
     for i in test[1]:
-        f.write(str(i[0]))
+        f.write("{:.7f}".format(i[0]))
         f.write(' ')
 
     f.write('\n')
