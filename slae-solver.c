@@ -5,7 +5,7 @@
 #include <string.h>
 
 #define ld double
-#define DBL_EPSILON 1E-7
+#define DBL_EPSILON 1E-6
 
 /* utils */
 
