@@ -6,7 +6,7 @@
 #include <math.h>
 
 #define ld double
-#define MY_EPS 0.00001
+#define DBL_EPSILON 1E-7
 
 /* utils */
 
@@ -50,14 +50,14 @@ int float_equals(ld LeftNumber, ld RightNumber, ld Epsilon)
     if (Largest < Epsilon)
     {
         if (diff <= Epsilon)
-            return 1; // true
-        return 0;     // false
+            return 1;
+        return 0;
     }
     else
     {
         if (diff <= Largest * Epsilon)
-            return 1; // true
-        return 0;     // false
+            return 1;
+        return 0;
     }
 }
 
@@ -226,7 +226,7 @@ size_t max_elt_pos(SLAE *slae, size_t column)
     size_t max_pos = column;
     for (size_t i = column; i < slae->size; i++)
     {
-        if (slae->coeficients[i][column] != 0 && (slae->coeficients[i][column] > max || max == 0))
+        if (!float_equals(slae->coeficients[i][column], 0.0, DBL_EPSILON) && (slae->coeficients[i][column] > max || float_equals(max, 0.0, DBL_EPSILON)))
         {
             max = slae->coeficients[i][column];
             max_pos = i;
@@ -248,6 +248,15 @@ ld *vector_times_scalar(ld *vector, size_t vector_size, ld scalar)
     for (size_t i = 0; i < vector_size; i++)
     {
         result[i] = vector[i] * scalar;
+
+        if (float_equals(result[i], 0.0, DBL_EPSILON))
+        {
+            result[i] = 0.0;
+        }
+        else if (float_equals(result[i], 1.0, DBL_EPSILON))
+        {
+            result[i] = 1.0;
+        }
     }
     return result;
 }
@@ -257,7 +266,7 @@ ld *vector_subtruction(ld *vector1, ld *vector2, size_t vector_size)
     ld *result = (ld *)malloc(sizeof(ld) * vector_size);
     for (size_t i = 0; i < vector_size; i++)
     {
-        if (float_equals(vector1[i], vector2[i], FLT_EPSILON))
+        if (float_equals(vector1[i], vector2[i], DBL_EPSILON))
         {
             result[i] = 0.0;
         }
@@ -303,7 +312,7 @@ int pivoting(SLAE *slae)
     for (size_t i = 0; i < slae->size; i++)
     {
         size_t max_pos = max_elt_pos(slae, i);
-        if (float_equals(slae->coeficients[max_pos][i], 0.0, FLT_EPSILON))
+        if (float_equals(slae->coeficients[max_pos][i], 0.0, DBL_EPSILON))
         {
             was_skip = 1;
             continue;
@@ -327,7 +336,7 @@ answer_type check_solution(SLAE *slae)
         {
             result += slae->coeficients[i][j] * slae->coeficients[j][slae->size];
         }
-        if (!float_equals(result, slae->coeficients[i][slae->size], FLT_EPSILON))
+        if (!float_equals(result, slae->coeficients[i][slae->size], DBL_EPSILON))
         {
             return no_solutions;
         }
@@ -423,7 +432,7 @@ int check_correctness_one_solution(test_sla *test)
     size_t size_x = test->system->size;
     for (size_t i = 0; i < size_x; i++)
     {
-        if (!float_equals(test->system->coeficients[i][size_x], test->solution[i], FLT_EPSILON))
+        if (!float_equals(test->system->coeficients[i][size_x], test->solution[i], DBL_EPSILON))
         {
             return 0;
         }
@@ -520,38 +529,38 @@ void run_tests(char *mode, size_t x_shape, size_t y_shape, char *lower_bound, ch
 
 /* main */
 
-// int main(int argc, char **argv)
-// {
-//     if (argc != 3)
-//     {
-//         printf("%s%d%s", "wrong number of arguments passed to program, got ", argc - 1, ", expected 2\n");
-//         exit(1);
-//     }
+int main(int argc, char **argv)
+{
+    if (argc != 3)
+    {
+        printf("%s%d%s", "wrong number of arguments passed to program, got ", argc - 1, ", expected 2\n");
+        exit(1);
+    }
 
-//     SLAE system;
-//     if (read_input(argv[1], &system) == 1)
-//     {
-//         printf("%s", "error while opening input file\n");
-//         exit(1);
-//     };
-//     solve_SLAE(&system);
+    SLAE system;
+    if (read_input(argv[1], &system) == 1)
+    {
+        printf("%s", "error while opening input file\n");
+        exit(1);
+    };
+    solve_SLAE(&system);
 
-//     printf("\n");
+    printf("\n");
 
-//     print_squere_matrix(system.coeficients, system.size, stdout);
+    print_squere_matrix(system.coeficients, system.size, stdout);
 
-//     if (write_output(argv[2], &system))
-//     {
-//         printf("%s", "an error occured while attempt to write solution to file\n");
-//         exit(1);
-//     }
+    if (write_output(argv[2], &system))
+    {
+        printf("%s", "an error occured while attempt to write solution to file\n");
+        exit(1);
+    }
 
-//     test_pivoting(&system);
+    test_pivoting(&system);
 
-//     free_SLE_from_stack(&system);
+    free_SLE_from_stack(&system);
 
-//     return 0;
-// }
+    return 0;
+}
 
 int my_getnbr(char *str)
 {
@@ -584,15 +593,15 @@ upper_bound
 count_tests
 */
 
-int main(int argc, char **argv)
-{
-    if (argc != 7)
-    {
-        printf("%s\n", "wrong number of arguments been passed to programm, expected 6 args");
-        exit(1);
-    }
+// int main(int argc, char **argv)
+// {
+//     if (argc != 7)
+//     {
+//         printf("%s\n", "wrong number of arguments been passed to programm, expected 6 args");
+//         exit(1);
+//     }
 
-    run_tests(argv[1], my_getnbr(argv[2]), my_getnbr(argv[3]), argv[4], argv[5], my_getnbr(argv[6]));
+//     run_tests(argv[1], my_getnbr(argv[2]), my_getnbr(argv[3]), argv[4], argv[5], my_getnbr(argv[6]));
 
-    return 0;
-}
+//     return 0;
+// }
