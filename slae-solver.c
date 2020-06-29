@@ -205,9 +205,9 @@ int pivoting(SLAE *slae)
         if (max_pos != i)
         {
             ld *tmp = (ld *)malloc(sizeof(ld) * (slae->size + 1));
-            memcpy(tmp, slae->coeficients + max_pos * (slae->size + 1), (slae->size + 1));
-            memcpy(slae->coeficients + max_pos * (slae->size + 1), slae->coeficients + i * (slae->size + 1), (slae->size + 1));
-            memcpy(slae->coeficients + i * (slae->size + 1), tmp, (slae->size + 1));
+            memcpy(tmp, slae->coeficients + max_pos * (slae->size + 1), (slae->size + 1) * sizeof(ld));
+            memcpy(slae->coeficients + max_pos * (slae->size + 1), slae->coeficients + i * (slae->size + 1), (slae->size + 1) * sizeof(ld));
+            memcpy(slae->coeficients + i * (slae->size + 1), tmp, (slae->size + 1) * sizeof(ld));
             free(tmp);
         }
         eliminate_column(slae->coeficients, slae->size, i, i);
