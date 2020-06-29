@@ -9,24 +9,6 @@
 
 /* utils */
 
-void print_squere_matrix(ld *matrix, size_t matrix_size, FILE *file)
-{
-    for (size_t i = 0; i < matrix_size; i++)
-    {
-        for (size_t j = 0; j < matrix_size + 1; j++)
-        {
-            if (j == matrix_size)
-            {
-                fprintf(file, "%.6lf\n", matrix[i * (matrix_size + 1) + j]);
-            }
-            else
-            {
-                fprintf(file, "%.6lf ", matrix[i * (matrix_size + 1) + j]);
-            }
-        }
-    }
-}
-
 int float_equals(ld a, ld b, ld eps)
 {
     ld diff = fabs(a - b);
@@ -127,7 +109,7 @@ int write_output(char *out_file, SLAE *solution)
     case one_solution:
         for (int i = 0; i < solution->size; i++)
         {
-            fprintf(out, "%lf\n", solution->coeficients[i * (solution->size + 1) + solution->size]);
+            fprintf(out, "%.10lf\n", solution->coeficients[i * (solution->size + 1) + solution->size]);
         }
         break;
     default:
@@ -233,7 +215,6 @@ int pivoting(SLAE *slae)
             free(tmp);
         }
         eliminate_column(slae->coeficients, slae->size, i, i);
-        print_squere_matrix(slae->coeficients, slae->size, stdout);
     }
     return was_skip;
 }
