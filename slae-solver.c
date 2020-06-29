@@ -1,15 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
-#include <math.h>
 #include <string.h>
 #include <float.h>
+#include <math.h>
 
-#define ld float
-#define DUMMY_EPS 0.000000000001f
-#define ABS_TOL 1.192092896e-07
-#define REL_TOL 1.0f
-#define FLT_EPSILON_C 1.192092896e-07
+#define ld double
+#define MY_EPS 0.00001
 
 /* utils */
 
@@ -21,11 +18,11 @@ void print_squere_matrix(ld **matrix, size_t matrix_size, FILE *file)
         {
             if (j == matrix_size)
             {
-                fprintf(file, "%.16f\n", matrix[i][j]);
+                fprintf(file, "%.16lf\n", matrix[i][j]);
             }
             else
             {
-                fprintf(file, "%.16f ", matrix[i][j]);
+                fprintf(file, "%.16lf ", matrix[i][j]);
             }
         }
     }
@@ -42,12 +39,26 @@ void matrix_copy(ld **matrix, size_t matrix_size, ld **dest)
     }
 }
 
-int float_equals(ld a, ld b, ld abs_tol, ld rel_tol)
+int float_equals(ld LeftNumber, ld RightNumber, ld Epsilon)
 {
-    ld diff = fabs(a - b);
-    return (diff <= fabs(rel_tol * b)) ||
-           (diff <= fabs(rel_tol * a)) ||
-           (diff <= abs_tol);
+    ld diff = fabs(LeftNumber - RightNumber);
+    LeftNumber = fabs(LeftNumber);
+    RightNumber = fabs(RightNumber);
+
+    ld Largest = (RightNumber > LeftNumber) ? RightNumber : LeftNumber;
+
+    if (Largest < Epsilon)
+    {
+        if (diff <= Epsilon)
+            return 1; // true
+        return 0;     // false
+    }
+    else
+    {
+        if (diff <= Largest * Epsilon)
+            return 1; // true
+        return 0;     // false
+    }
 }
 
 ld **allocate_2D_double_array(size_t x_shape, size_t y_shape)
@@ -160,7 +171,7 @@ int read_input(char *in_file, SLAE *input_system)
     {
         for (int j = 0; j < N + 1; j++)
         {
-            fscanf(file_in, "%f", &(input_system->coeficients[i][j]));
+            fscanf(file_in, "%lf", &(input_system->coeficients[i][j]));
         }
     }
 
@@ -188,7 +199,7 @@ int write_output(char *out_file, SLAE *solution)
     case one_solution:
         for (size_t i = 0; i < solution->size; i++)
         {
-            fprintf(out, "%.16f\n", solution->coeficients[i][solution->size]);
+            fprintf(out, "%.16lf\n", solution->coeficients[i][solution->size]);
         }
         break;
     default:
@@ -237,14 +248,6 @@ ld *vector_times_scalar(ld *vector, size_t vector_size, ld scalar)
     for (size_t i = 0; i < vector_size; i++)
     {
         result[i] = vector[i] * scalar;
-        if (float_equals(result[i], 0.0f, ABS_TOL, FLT_EPSILON_C))
-        {
-            result[i] = 0.0f;
-        }
-        else if (float_equals(result[i], 1.0f, ABS_TOL, FLT_EPSILON_C))
-        {
-            result[i] = 1.0f;
-        }
     }
     return result;
 }
@@ -254,9 +257,9 @@ ld *vector_subtruction(ld *vector1, ld *vector2, size_t vector_size)
     ld *result = (ld *)malloc(sizeof(ld) * vector_size);
     for (size_t i = 0; i < vector_size; i++)
     {
-        if (float_equals(vector1[i], vector2[i], ABS_TOL, FLT_EPSILON_C))
+        if (float_equals(vector1[i], vector2[i], FLT_EPSILON))
         {
-            result[i] = 0.0f;
+            result[i] = 0.0;
         }
         else
         {
@@ -268,7 +271,7 @@ ld *vector_subtruction(ld *vector1, ld *vector2, size_t vector_size)
 
 void eliminate_column(ld **matrix, size_t matrix_size, size_t column, size_t pivot_index)
 {
-    ld scalar = 1.0f / matrix[pivot_index][column];
+    ld scalar = 1.0 / matrix[pivot_index][column];
     ld *norm_pivot = vector_times_scalar(matrix[pivot_index], matrix_size + 1, scalar);
     matrix_change_row(matrix, norm_pivot, pivot_index);
     for (size_t i = 0; i < matrix_size; i++)
@@ -300,7 +303,7 @@ int pivoting(SLAE *slae)
     for (size_t i = 0; i < slae->size; i++)
     {
         size_t max_pos = max_elt_pos(slae, i);
-        if (float_equals(slae->coeficients[max_pos][i], 0.0f, ABS_TOL, FLT_EPSILON_C))
+        if (float_equals(slae->coeficients[max_pos][i], 0.0, FLT_EPSILON))
         {
             was_skip = 1;
             continue;
@@ -310,7 +313,7 @@ int pivoting(SLAE *slae)
             row_swap(slae->coeficients, max_pos, i);
         }
         eliminate_column(slae->coeficients, slae->size, i, i);
-        print_squere_matrix(slae->coeficients, slae->size, stdout);
+        //print_squere_matrix(slae->coeficients, slae->size, stdout);
     }
     return was_skip;
 }
@@ -319,12 +322,12 @@ answer_type check_solution(SLAE *slae)
 {
     for (size_t i = 0; i < slae->size; i++)
     {
-        ld result = 0.0f;
+        ld result = 0.0;
         for (size_t j = 0; j < slae->size; j++)
         {
             result += slae->coeficients[i][j] * slae->coeficients[j][slae->size];
         }
-        if (!float_equals(result, slae->coeficients[i][slae->size], ABS_TOL, FLT_EPSILON_C))
+        if (!float_equals(result, slae->coeficients[i][slae->size], FLT_EPSILON))
         {
             return no_solutions;
         }
@@ -376,7 +379,7 @@ int read_test(FILE *tests, SLAE *system, test_sla *test, int require_solution)
     {
         for (size_t j = 0; j < y_size; j++)
         {
-            fscanf(tests, "%f", &(system->coeficients[i][j]));
+            fscanf(tests, "%lf", &(system->coeficients[i][j]));
         }
     }
     ld *solution = (ld *)malloc(sizeof(ld) * x_size);
@@ -384,7 +387,7 @@ int read_test(FILE *tests, SLAE *system, test_sla *test, int require_solution)
     {
         for (size_t i = 0; i < x_size; i++)
         {
-            fscanf(tests, "%f", &(solution[i]));
+            fscanf(tests, "%lf", &(solution[i]));
         }
     }
 
@@ -402,12 +405,12 @@ int write_wrong_one_solution(test_sla *test, FILE *out)
     fprintf(out, "%s\n", "EXPECTED:");
     for (size_t i = 0; i < test->system->size; i++)
     {
-        fprintf(out, "%.16f ", test->solution[i]);
+        fprintf(out, "%.16lf ", test->solution[i]);
     }
     fprintf(out, "\n%s\n", "GOT:");
     for (size_t i = 0; i < test->system->size; i++)
     {
-        fprintf(out, "%.16f ", test->system->coeficients[i][test->system->size]);
+        fprintf(out, "%.16lf ", test->system->coeficients[i][test->system->size]);
     }
     fprintf(out, "%s", "\n");
     return 0;
@@ -420,7 +423,7 @@ int check_correctness_one_solution(test_sla *test)
     size_t size_x = test->system->size;
     for (size_t i = 0; i < size_x; i++)
     {
-        if (!float_equals(test->system->coeficients[i][size_x], test->solution[i], ABS_TOL, FLT_EPSILON_C))
+        if (!float_equals(test->system->coeficients[i][size_x], test->solution[i], FLT_EPSILON))
         {
             return 0;
         }
@@ -468,7 +471,7 @@ void run_tests(char *mode, size_t x_shape, size_t y_shape, char *lower_bound, ch
 
         if (strcmp(mode, "ld") == 0)
         {
-            if (test->system->at == inf_solution)
+            if (test->system->at == inf_solution || test->system->at == no_solutions)
             {
                 printf("%s%d%s\n", "Test № ", i + 1, " passed successfully");
                 tests_passed++;
@@ -493,14 +496,14 @@ void run_tests(char *mode, size_t x_shape, size_t y_shape, char *lower_bound, ch
 
                 for (size_t j = 0; j < x_shape; j++)
                 {
-                    printf("%.16f ", system->coeficients[j][system->size]);
+                    printf("%.16lf ", system->coeficients[j][system->size]);
                 }
 
                 printf("\n%s\n", "SYSTEMS ANSWER:");
 
                 for (size_t j = 0; j < x_shape; j++)
                 {
-                    printf("%.16f ", test->solution[j]);
+                    printf("%.16lf ", test->solution[j]);
                 }
                 printf("%s", "\n");
                 tests_passed++;
