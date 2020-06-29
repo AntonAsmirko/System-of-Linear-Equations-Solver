@@ -233,6 +233,7 @@ int pivoting(SLAE *slae)
             free(tmp);
         }
         eliminate_column(slae->coeficients, slae->size, i, i);
+        print_squere_matrix(slae->coeficients, slae->size, stdout);
     }
     return was_skip;
 }
