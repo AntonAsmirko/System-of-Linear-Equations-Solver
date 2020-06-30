@@ -68,9 +68,25 @@ def make_linear_dependent_matrix(x_axes, y_axes, lower_bound, upper_bound):
 
     return probably_linear_independent_matrix
 
-# Tests modes description:
-# pli - probably linear independent
-# ld - linear dependent
+
+def no_solution(matrix):
+    x_shape = len(matrix)
+    rand_row = random.randint(0, x_shape - 1)
+
+    second_rand_row = rand_row
+
+    while(second_rand_row == rand_row):
+        second_rand_row = random.randint(0, x_shape - 1)
+
+    for j in range(0, len(matrix[rand_row]) - 1):
+        matrix[rand_row][j] = matrix[second_rand_row][j]
+
+    return matrix
+
+    # Tests modes description:
+    # pli - probably linear independent
+    # ld - linear dependent
+    # ns - no solution
 
 
 def main():
@@ -89,7 +105,7 @@ def main():
 
     if mode == 'pli':
         matrix_type = make_matrix
-    elif mode == 'ld':
+    elif mode == 'ld' or mode == 'ns':
         matrix_type = make_linear_dependent_matrix
 
     if matrix_type == None:
@@ -104,6 +120,10 @@ def main():
             test = make_test(matrix)
             write_test(test, f)
         elif mode == 'ld':
+            test = (matrix, [])
+            write_test(test, f)
+        elif mode == 'ns':
+            matrix = no_solution(matrix)
             test = (matrix, [])
             write_test(test, f)
     f.close()
