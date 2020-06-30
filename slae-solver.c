@@ -299,14 +299,18 @@ int main(int argc, char **argv)
 
     if (solve_SLAE(&system))
     {
+        free(system.coeficients);
         exit(1);
     }
 
     if (write_output(argv[2], &system))
     {
         printf("%s", "an error occured while attempt to write solution to file\n");
+        free(system.coeficients);
         exit(1);
     }
+
+    free(system.coeficients);
 
     return 0;
 }
