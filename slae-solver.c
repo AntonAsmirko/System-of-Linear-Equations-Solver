@@ -1,21 +1,26 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
 #include <math.h>
 #include <string.h>
 
-#define ld double
-#define DBL_EPSILON 1E-6
+#define FP_TYPE double
+#define TYPE_EPSILON 1E-6
+#define ZERO 0.0
+#define ONE 1.0
+#define TYPE_ABS(a) fabs(a)
+#define MAX(a, b) ((b > a) ? b : a)
+#define TYPE_FSCANF(file, dest) fscanf(file, "%lf", dest)
+#define TYPE_FPRINTF(file, val) fprintf(file, "%lf\n", val)
 
 /* utils */
 
-int float_equals(ld a, ld b, ld eps)
+int float_equals(FP_TYPE a, FP_TYPE b, FP_TYPE eps)
 {
-    ld diff = fabs(a - b);
-    a = fabs(a);
-    b = fabs(b);
+    FP_TYPE diff = TYPE_ABS(a - b);
+    a = TYPE_ABS(a);
+    b = TYPE_ABS(b);
 
-    ld lar = (b > a) ? b : a;
+    FP_TYPE lar = MAX(a, b);
 
     if (lar < eps)
     {
@@ -54,13 +59,13 @@ typedef enum answer_type
 typedef struct SLAE
 {
     int size;
-    ld *coeficients;
+    FP_TYPE *coeficients;
     answer_type at;
 } SLAE;
 
 int make_SLAE(int system_size, SLAE *system)
 {
-    system->coeficients = (ld *)malloc(sizeof(ld) * system_size * (system_size + 1));
+    system->coeficients = (FP_TYPE *)malloc(sizeof(FP_TYPE) * system_size * (system_size + 1));
     if (system->coeficients == NULL)
     {
         printf("%s\n", "An error occured while attempt to allocate memory for matrix of system's coefficients");
@@ -93,7 +98,7 @@ int read_input(char *in_file, SLAE *input_system)
     {
         for (int j = 0; j < N + 1; j++)
         {
-            fscanf(file_in, "%lf", &(input_system->coeficients[i * (input_system->size + 1) + j]));
+            TYPE_FSCANF(file_in, &(input_system->coeficients[i * (input_system->size + 1) + j]));
         }
     }
 
@@ -121,7 +126,7 @@ int write_output(char *out_file, SLAE *solution)
     case one_solution:
         for (int i = 0; i < solution->size; i++)
         {
-            fprintf(out, "%.10lf\n", solution->coeficients[i * (solution->size + 1) + solution->size]);
+            TYPE_FPRINTF(out, solution->coeficients[i * (solution->size + 1) + solution->size]);
         }
         break;
     default:
@@ -135,19 +140,19 @@ int write_output(char *out_file, SLAE *solution)
 
 /* slae solver */
 
-void vector_times_scalar(ld *vector, size_t vector_size, ld scalar)
+void vector_times_scalar(FP_TYPE *vector, size_t vector_size, FP_TYPE scalar)
 {
     for (size_t i = 0; i < vector_size; i++)
     {
         vector[i] = vector[i] * scalar;
 
-        if (float_equals(vector[i], 0.0, DBL_EPSILON))
+        if (float_equals(vector[i], ZERO, TYPE_EPSILON))
         {
-            vector[i] = 0.0;
+            vector[i] = ZERO;
         }
-        else if (float_equals(vector[i], 1.0, DBL_EPSILON))
+        else if (float_equals(vector[i], ONE, TYPE_EPSILON))
         {
-            vector[i] = 1.0;
+            vector[i] = ONE;
         }
     }
 }
@@ -159,39 +164,39 @@ int pivoting(SLAE *slae)
 
     for (size_t i = 0; i < slae->size; i++)
     {
-        ld max_koef = slae->coeficients[i * row_len + i];
+        FP_TYPE max_koef = slae->coeficients[i * row_len + i];
         size_t max_pos = i;
 
         for (size_t j = i; j < slae->size; j++)
         {
-            if (!float_equals(slae->coeficients[j * row_len + i], 0.0, DBL_EPSILON) &&
-                (slae->coeficients[j * row_len + i] > max_koef || float_equals(max_koef, 0.0, DBL_EPSILON)))
+            if (!float_equals(slae->coeficients[j * row_len + i], ZERO, TYPE_EPSILON) &&
+                (slae->coeficients[j * row_len + i] > max_koef || float_equals(max_koef, ZERO, TYPE_EPSILON)))
             {
                 max_koef = slae->coeficients[j * row_len + i];
                 max_pos = j;
             }
         }
 
-        if (float_equals(slae->coeficients[max_pos * row_len + i], 0.0, DBL_EPSILON))
+        if (float_equals(slae->coeficients[max_pos * row_len + i], ZERO, TYPE_EPSILON))
         {
             was_skip = 1;
             continue;
         }
         if (max_pos != i)
         {
-            ld *tmp = (ld *)malloc(sizeof(ld) * row_len);
+            FP_TYPE *tmp = (FP_TYPE *)malloc(sizeof(FP_TYPE) * row_len);
             if (tmp == NULL)
             {
                 printf("%s\n", "Trouble with allocation of memory in fn 'pivoting'");
                 return -1;
             }
-            memcpy(tmp, slae->coeficients + max_pos * row_len, row_len * sizeof(ld));
-            memcpy(slae->coeficients + max_pos * row_len, slae->coeficients + i * row_len, row_len * sizeof(ld));
-            memcpy(slae->coeficients + i * row_len, tmp, row_len * sizeof(ld));
+            memcpy(tmp, slae->coeficients + max_pos * row_len, row_len * sizeof(FP_TYPE));
+            memcpy(slae->coeficients + max_pos * row_len, slae->coeficients + i * row_len, row_len * sizeof(FP_TYPE));
+            memcpy(slae->coeficients + i * row_len, tmp, row_len * sizeof(FP_TYPE));
             free(tmp);
         }
 
-        ld scalar = 1.0 / slae->coeficients[i * row_len + i];
+        FP_TYPE scalar = ONE / slae->coeficients[i * row_len + i];
         vector_times_scalar(slae->coeficients + i * row_len, row_len, scalar);
         for (size_t j = 0; j < slae->size; j++)
         {
@@ -201,21 +206,21 @@ int pivoting(SLAE *slae)
             }
             else
             {
-                ld koefficient = slae->coeficients[j * row_len + i];
-                ld *tmp = (ld *)malloc(sizeof(ld) * row_len);
+                FP_TYPE koefficient = slae->coeficients[j * row_len + i];
+                FP_TYPE *tmp = (FP_TYPE *)malloc(sizeof(FP_TYPE) * row_len);
                 if (tmp == NULL)
                 {
                     printf("%s\n", "Trouble with allocation of memory in fn 'pivoting'");
                     return -1;
                 }
-                memcpy(tmp, slae->coeficients + i * row_len, row_len * sizeof(ld));
+                memcpy(tmp, slae->coeficients + i * row_len, row_len * sizeof(FP_TYPE));
                 vector_times_scalar(tmp, row_len, koefficient);
 
                 for (size_t k = 0; k < row_len; k++)
                 {
-                    if (float_equals((slae->coeficients + j * row_len)[k], tmp[k], DBL_EPSILON))
+                    if (float_equals((slae->coeficients + j * row_len)[k], tmp[k], TYPE_EPSILON))
                     {
-                        (slae->coeficients + j * row_len)[k] = 0.0;
+                        (slae->coeficients + j * row_len)[k] = ZERO;
                     }
                     else
                     {
@@ -236,12 +241,12 @@ answer_type check_solution(SLAE *slae)
 
     for (size_t i = 0; i < slae->size; i++)
     {
-        ld result = 0.0;
+        FP_TYPE result = ZERO;
         for (size_t j = 0; j < slae->size; j++)
         {
             result += slae->coeficients[i * row_len + j] * slae->coeficients[j * row_len + slae->size];
         }
-        if (!float_equals(result, slae->coeficients[i * row_len + slae->size], DBL_EPSILON))
+        if (!float_equals(result, slae->coeficients[i * row_len + slae->size], TYPE_EPSILON))
         {
             return no_solutions;
         }
