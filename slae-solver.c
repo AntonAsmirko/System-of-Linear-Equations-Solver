@@ -135,22 +135,6 @@ int write_output(char *out_file, SLAE *solution)
 
 /* slae solver */
 
-size_t max_elt_pos(SLAE *slae, size_t column)
-{
-    ld max = slae->coeficients[column * (slae->size + 1) + column];
-    size_t max_pos = column;
-    for (size_t i = column; i < slae->size; i++)
-    {
-        if (!float_equals(slae->coeficients[i * (slae->size + 1) + column], 0.0, DBL_EPSILON) &&
-            (slae->coeficients[i * (slae->size + 1) + column] > max || float_equals(max, 0.0, DBL_EPSILON)))
-        {
-            max = slae->coeficients[i * (slae->size + 1) + column];
-            max_pos = i;
-        }
-    }
-    return max_pos;
-}
-
 void vector_times_scalar(ld *vector, size_t vector_size, ld scalar)
 {
     for (size_t i = 0; i < vector_size; i++)
@@ -168,78 +152,79 @@ void vector_times_scalar(ld *vector, size_t vector_size, ld scalar)
     }
 }
 
-void vector_subtruction(ld *vector1, ld *vector2, size_t vector_size)
-{
-    for (size_t i = 0; i < vector_size; i++)
-    {
-        if (float_equals(vector1[i], vector2[i], DBL_EPSILON))
-        {
-            vector1[i] = 0.0;
-        }
-        else
-        {
-            vector1[i] = vector1[i] - vector2[i];
-        }
-    }
-}
-
-int eliminate_column(ld *matrix, size_t matrix_size, size_t column, size_t pivot_index)
-{
-    const size_t row_len = (matrix_size + 1);
-    ld scalar = 1.0 / matrix[pivot_index * row_len + column];
-    vector_times_scalar(matrix + pivot_index * row_len, row_len, scalar);
-    for (size_t i = 0; i < matrix_size; i++)
-    {
-        if (i == pivot_index)
-        {
-            continue;
-        }
-        else
-        {
-            ld koefficient = matrix[i * row_len + column];
-            ld *tmp = (ld *)malloc(sizeof(ld) * (matrix_size + 1));
-            if (tmp == NULL)
-            {
-                printf("%s\n", "Trouble with allocation of memory in fn 'eliminate_column'");
-                return 1;
-            }
-            memcpy(tmp, matrix + pivot_index * row_len, row_len * sizeof(ld));
-            vector_times_scalar(tmp, row_len, koefficient);
-            vector_subtruction(matrix + i * row_len, tmp, row_len);
-            free(tmp);
-        }
-    }
-    return 0;
-}
-
 int pivoting(SLAE *slae)
 {
+    const size_t row_len = (slae->size + 1);
     int was_skip = 0;
 
     for (size_t i = 0; i < slae->size; i++)
     {
-        size_t max_pos = max_elt_pos(slae, i);
-        if (float_equals(slae->coeficients[max_pos * (slae->size + 1) + i], 0.0, DBL_EPSILON))
+        ld max_koef = slae->coeficients[i * row_len + i];
+        size_t max_pos = i;
+
+        for (size_t j = i; j < slae->size; j++)
+        {
+            if (!float_equals(slae->coeficients[j * row_len + i], 0.0, DBL_EPSILON) &&
+                (slae->coeficients[j * row_len + i] > max_koef || float_equals(max_koef, 0.0, DBL_EPSILON)))
+            {
+                max_koef = slae->coeficients[j * row_len + i];
+                max_pos = j;
+            }
+        }
+
+        if (float_equals(slae->coeficients[max_pos * row_len + i], 0.0, DBL_EPSILON))
         {
             was_skip = 1;
             continue;
         }
         if (max_pos != i)
         {
-            ld *tmp = (ld *)malloc(sizeof(ld) * (slae->size + 1));
+            ld *tmp = (ld *)malloc(sizeof(ld) * row_len);
             if (tmp == NULL)
             {
                 printf("%s\n", "Trouble with allocation of memory in fn 'pivoting'");
                 return -1;
             }
-            memcpy(tmp, slae->coeficients + max_pos * (slae->size + 1), (slae->size + 1) * sizeof(ld));
-            memcpy(slae->coeficients + max_pos * (slae->size + 1), slae->coeficients + i * (slae->size + 1), (slae->size + 1) * sizeof(ld));
-            memcpy(slae->coeficients + i * (slae->size + 1), tmp, (slae->size + 1) * sizeof(ld));
+            memcpy(tmp, slae->coeficients + max_pos * row_len, row_len * sizeof(ld));
+            memcpy(slae->coeficients + max_pos * row_len, slae->coeficients + i * row_len, row_len * sizeof(ld));
+            memcpy(slae->coeficients + i * row_len, tmp, row_len * sizeof(ld));
             free(tmp);
         }
-        if (eliminate_column(slae->coeficients, slae->size, i, i))
+
+        ld scalar = 1.0 / slae->coeficients[i * row_len + i];
+        vector_times_scalar(slae->coeficients + i * row_len, row_len, scalar);
+        for (size_t j = 0; j < slae->size; j++)
         {
-            return -1;
+            if (j == i)
+            {
+                continue;
+            }
+            else
+            {
+                ld koefficient = slae->coeficients[j * row_len + i];
+                ld *tmp = (ld *)malloc(sizeof(ld) * row_len);
+                if (tmp == NULL)
+                {
+                    printf("%s\n", "Trouble with allocation of memory in fn 'pivoting'");
+                    return -1;
+                }
+                memcpy(tmp, slae->coeficients + i * row_len, row_len * sizeof(ld));
+                vector_times_scalar(tmp, row_len, koefficient);
+
+                for (size_t k = 0; k < row_len; k++)
+                {
+                    if (float_equals((slae->coeficients + j * row_len)[k], tmp[k], DBL_EPSILON))
+                    {
+                        (slae->coeficients + j * row_len)[k] = 0.0;
+                    }
+                    else
+                    {
+                        (slae->coeficients + j * row_len)[k] -= tmp[k];
+                    }
+                }
+
+                free(tmp);
+            }
         }
     }
     return was_skip;
@@ -247,14 +232,16 @@ int pivoting(SLAE *slae)
 
 answer_type check_solution(SLAE *slae)
 {
+    const size_t row_len = (slae->size + 1);
+
     for (size_t i = 0; i < slae->size; i++)
     {
         ld result = 0.0;
         for (size_t j = 0; j < slae->size; j++)
         {
-            result += slae->coeficients[i * (slae->size + 1) + j] * slae->coeficients[j * (slae->size + 1) + slae->size];
+            result += slae->coeficients[i * row_len + j] * slae->coeficients[j * row_len + slae->size];
         }
-        if (!float_equals(result, slae->coeficients[i * (slae->size + 1) + slae->size], DBL_EPSILON))
+        if (!float_equals(result, slae->coeficients[i * row_len + slae->size], DBL_EPSILON))
         {
             return no_solutions;
         }
@@ -284,7 +271,6 @@ int solve_SLAE(SLAE *slae)
 
 int main(int argc, char **argv)
 {
-
     if (argc != 3)
     {
         printf("%s%d%s", "wrong number of arguments passed to program, got ", argc - 1, ", expected 2\n");
