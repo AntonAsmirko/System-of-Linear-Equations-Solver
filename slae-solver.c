@@ -58,11 +58,18 @@ typedef struct SLAE
     answer_type at;
 } SLAE;
 
-void make_SLAE(int system_size, SLAE *system)
+int make_SLAE(int system_size, SLAE *system)
 {
     system->coeficients = (ld *)malloc(sizeof(ld) * system_size * (system_size + 1));
+    if (system->coeficients == NULL)
+    {
+        printf("%s\n", "An error occured while attempt to allocate memory for matrix of system's coefficients");
+        return 1;
+    }
     system->size = system_size;
     system->at = not_solved_yet;
+
+    return 0;
 }
 
 /* read input */
@@ -72,11 +79,16 @@ int read_input(char *in_file, SLAE *input_system)
     FILE *file_in;
     if (!(file_in = fopen(in_file, "r")))
     {
+        printf("%s", "error while opening input file\n");
         return 1;
     }
     int N;
     fscanf(file_in, "%d", &N);
-    make_SLAE(N, input_system);
+    if (make_SLAE(N, input_system))
+    {
+        fclose(file_in);
+        return 1;
+    }
     for (int i = 0; i < N; i++)
     {
         for (int j = 0; j < N + 1; j++)
@@ -171,7 +183,7 @@ void vector_subtruction(ld *vector1, ld *vector2, size_t vector_size)
     }
 }
 
-void eliminate_column(ld *matrix, size_t matrix_size, size_t column, size_t pivot_index)
+int eliminate_column(ld *matrix, size_t matrix_size, size_t column, size_t pivot_index)
 {
     const size_t row_len = (matrix_size + 1);
     ld scalar = 1.0 / matrix[pivot_index * row_len + column];
@@ -186,12 +198,18 @@ void eliminate_column(ld *matrix, size_t matrix_size, size_t column, size_t pivo
         {
             ld koefficient = matrix[i * row_len + column];
             ld *tmp = (ld *)malloc(sizeof(ld) * (matrix_size + 1));
+            if (tmp == NULL)
+            {
+                printf("%s\n", "Trouble with allocation of memory in fn 'eliminate_column'");
+                return 1;
+            }
             memcpy(tmp, matrix + pivot_index * row_len, row_len * sizeof(ld));
             vector_times_scalar(tmp, row_len, koefficient);
             vector_subtruction(matrix + i * row_len, tmp, row_len);
             free(tmp);
         }
     }
+    return 0;
 }
 
 int pivoting(SLAE *slae)
@@ -209,12 +227,20 @@ int pivoting(SLAE *slae)
         if (max_pos != i)
         {
             ld *tmp = (ld *)malloc(sizeof(ld) * (slae->size + 1));
+            if (tmp == NULL)
+            {
+                printf("%s\n", "Trouble with allocation of memory in fn 'pivoting'");
+                return -1;
+            }
             memcpy(tmp, slae->coeficients + max_pos * (slae->size + 1), (slae->size + 1) * sizeof(ld));
             memcpy(slae->coeficients + max_pos * (slae->size + 1), slae->coeficients + i * (slae->size + 1), (slae->size + 1) * sizeof(ld));
             memcpy(slae->coeficients + i * (slae->size + 1), tmp, (slae->size + 1) * sizeof(ld));
             free(tmp);
         }
-        eliminate_column(slae->coeficients, slae->size, i, i);
+        if (eliminate_column(slae->coeficients, slae->size, i, i))
+        {
+            return -1;
+        }
     }
     return was_skip;
 }
@@ -236,9 +262,13 @@ answer_type check_solution(SLAE *slae)
     return inf_solution;
 }
 
-void solve_SLAE(SLAE *slae)
+int solve_SLAE(SLAE *slae)
 {
     int was_skip = pivoting(slae);
+    if (was_skip == -1)
+    {
+        return 1;
+    }
     if (was_skip)
     {
         slae->at = check_solution(slae);
@@ -247,6 +277,7 @@ void solve_SLAE(SLAE *slae)
     {
         slae->at = one_solution;
     }
+    return 0;
 }
 
 /* main */
@@ -263,10 +294,13 @@ int main(int argc, char **argv)
     SLAE system;
     if (read_input(argv[1], &system) == 1)
     {
-        printf("%s", "error while opening input file\n");
         exit(1);
-    };
-    solve_SLAE(&system);
+    }
+
+    if (solve_SLAE(&system))
+    {
+        exit(1);
+    }
 
     if (write_output(argv[2], &system))
     {
@@ -276,5 +310,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-
-// YO
